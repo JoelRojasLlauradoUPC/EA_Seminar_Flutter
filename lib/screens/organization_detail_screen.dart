@@ -42,6 +42,150 @@ class _OrganizationDetailScreenState extends State<OrganizationDetailScreen> {
     return '$day/$month/$year';
   }
 
+  Map<String, List<Task>> _groupTasksByStatus(List<Task> tasks) {
+    final Map<String, List<Task>> grouped = <String, List<Task>>{
+      TaskStatus.todo: <Task>[],
+      TaskStatus.inProgress: <Task>[],
+      TaskStatus.done: <Task>[],
+    };
+
+    for (final Task task in tasks) {
+      grouped[task.status] ??= <Task>[];
+      grouped[task.status]!.add(task);
+    }
+
+    return grouped;
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case TaskStatus.inProgress:
+        return Colors.orange;
+      case TaskStatus.done:
+        return Colors.green;
+      case TaskStatus.todo:
+      default:
+        return Colors.blueAccent;
+    }
+  }
+
+  Widget _buildTaskCard(Task task) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        onTap: () async {
+          final bool? updated = await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (BuildContext context) => TaskDetailScreen(
+                organizacionId: widget.organization.id,
+                task: task,
+              ),
+            ),
+          );
+
+          if (updated == true) {
+            _reloadTasks();
+          }
+        },
+        leading: CircleAvatar(
+          backgroundColor: _statusColor(task.status).withOpacity(0.12),
+          child: Icon(Icons.task_alt, color: _statusColor(task.status)),
+        ),
+        title: Text(
+          task.titulo,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 4),
+            Text('Inicio: ${_formatDate(task.fechaInicio)}'),
+            Text('Fin: ${_formatDate(task.fechaFin)}'),
+            const SizedBox(height: 6),
+            Chip(
+              label: Text(task.status),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              backgroundColor: _statusColor(task.status).withOpacity(0.12),
+              labelStyle: TextStyle(
+                color: _statusColor(task.status),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        isThreeLine: true,
+      ),
+    );
+  }
+
+  Widget _buildStatusColumn(String status, List<Task> tasks) {
+    return SizedBox(
+      width: 300,
+      child: Card(
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: _statusColor(status),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      status,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Chip(
+                    label: Text(tasks.length.toString()),
+                    backgroundColor: _statusColor(status).withOpacity(0.12),
+                    labelStyle: TextStyle(
+                      color: _statusColor(status),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: tasks.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Sin tareas',
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: tasks.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          return _buildTaskCard(tasks[index]);
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,6 +269,7 @@ class _OrganizationDetailScreenState extends State<OrganizationDetailScreen> {
                 }
 
                 final List<Task> tasks = snapshot.data ?? <Task>[];
+                final Map<String, List<Task>> groupedTasks = _groupTasksByStatus(tasks);
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,7 +280,7 @@ class _OrganizationDetailScreenState extends State<OrganizationDetailScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Próximas Tareas',
+                            'Tareas',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -143,7 +288,7 @@ class _OrganizationDetailScreenState extends State<OrganizationDetailScreen> {
                             ),
                           ),
                           Chip(
-                            label: Text('${tasks.length} activas'),
+                            label: Text('${tasks.length} tareas'),
                             backgroundColor: Colors.blueAccent.withOpacity(0.1),
                             labelStyle: const TextStyle(
                               color: Colors.blueAccent,
@@ -155,44 +300,41 @@ class _OrganizationDetailScreenState extends State<OrganizationDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     Expanded(
-                      child: tasks.isEmpty
-                          ? const Center(
-                              child: Text('Aún no hay tareas en esta organización'),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              itemCount: tasks.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final Task task = tasks[index];
-
-                                return Card(
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 8,
-                                  ),
-                                  child: ListTile(
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) => TaskDetailScreen(task: task),
-                                        ),
-                                      );
-                                    },
-                                    leading: const Icon(Icons.task_alt),
-                                    title: Text(
-                                      task.titulo,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                      child: LayoutBuilder(
+                        builder: (BuildContext context, BoxConstraints constraints) {
+                          return SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: constraints.maxHeight,
+                              ),
+                              child: SizedBox(
+                                height: constraints.maxHeight,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    _buildStatusColumn(
+                                      TaskStatus.todo,
+                                      groupedTasks[TaskStatus.todo] ?? <Task>[],
                                     ),
-                                    subtitle: Text(
-                                      'Inicio: ${_formatDate(task.fechaInicio)}\nFin: ${_formatDate(task.fechaFin)}',
+                                    const SizedBox(width: 16),
+                                    _buildStatusColumn(
+                                      TaskStatus.inProgress,
+                                      groupedTasks[TaskStatus.inProgress] ?? <Task>[],
                                     ),
-                                    isThreeLine: true,
-                                  ),
-                                );
-                              },
+                                    const SizedBox(width: 16),
+                                    _buildStatusColumn(
+                                      TaskStatus.done,
+                                      groupedTasks[TaskStatus.done] ?? <Task>[],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 );

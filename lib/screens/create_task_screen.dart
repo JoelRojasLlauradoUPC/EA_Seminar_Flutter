@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/organization.dart';
+import '../models/task.dart';
 import '../services/organization_service.dart';
 
 class CreateTaskScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
   DateTime? _startDate;
   DateTime? _endDate;
+  String _selectedEstado = TaskStatus.todo;
   late final Set<String> _selectedUsuarioIds;
   bool _isSubmitting = false;
 
@@ -149,6 +151,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         titulo: _titleController.text.trim(),
         fechaInicio: _normalizeStartDate(_startDate!),
         fechaFin: _normalizeEndDate(_endDate!),
+        status: _selectedEstado,
         usuarios: _selectedUsuarioIds.toList(),
       );
 
@@ -270,6 +273,32 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                               return 'El título es obligatorio';
                             }
                             return null;
+                          },
+                        ),
+                        const SizedBox(height: 16), //Desplegable estat
+                        DropdownButtonFormField<String>(
+                          value: _selectedEstado,
+                          decoration: _buildInputDecoration(
+                            label: 'Estado',
+                            hint: 'Selecciona el estado',
+                            icon: Icons.flag,
+                          ),
+                          items: TaskStatus.values
+                              .map(
+                                (String estado) => DropdownMenuItem<String>(
+                                  value: estado,
+                                  child: Text(estado),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (String? value) {
+                            if (value == null) {
+                              return;
+                            }
+
+                            setState(() {
+                              _selectedEstado = value;
+                            });
                           },
                         ),
                         const SizedBox(height: 16),
